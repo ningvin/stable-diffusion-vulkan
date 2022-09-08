@@ -20,6 +20,8 @@ from ldm.models.diffusion.plms import PLMSSampler
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from transformers import AutoFeatureExtractor
 
+from scripts.utility.device_selection import send_to_preferred_device, get_preferred_device
+
 def chunk(it, size):
     it = iter(it)
     return iter(lambda: tuple(islice(it, size)), ())
@@ -34,6 +36,11 @@ def numpy_to_pil(images):
     pil_images = [Image.fromarray(image) for image in images]
 
     return pil_images
+
+def continue_or_exit():
+    answer = input(">>> about to send model to device, continue? [y/n]: ")
+    if not answer.lower() in ["y","yes"]:
+        quit()
 
 def load_model_from_config(config, ckpt, verbose=False):
     print(f"Loading model from {ckpt}")
@@ -50,7 +57,9 @@ def load_model_from_config(config, ckpt, verbose=False):
         print("unexpected keys:")
         print(u)
 
-    model.cuda()
+    continue_or_exit() # useful if you want to attach with a debugger
+
+    model = send_to_preferred_device(model)
     model.eval()
     return model
 
@@ -65,6 +74,11 @@ def load_replacement(x):
         return x
 
 def main():
+    print(torch.__version__) # useful to check if this is picking up the correct torch version
+    if not torch.is_vulkan_available():
+        print("[ERROR]: Vulkan is not available...")
+        return
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -209,7 +223,7 @@ def main():
     config = OmegaConf.load(f"{opt.config}")
     model = load_model_from_config(config, f"{opt.ckpt}")
 
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device(get_preferred_device())
     model = model.to(device)
 
     if opt.plms:
@@ -244,7 +258,7 @@ def main():
 
     precision_scope = autocast if opt.precision=="autocast" else nullcontext
     with torch.no_grad():
-        with precision_scope("cuda"):
+        with precision_scope("cuda"): # TODO
             with model.ema_scope():
                 tic = time.time()
                 all_samples = list()

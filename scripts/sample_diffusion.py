@@ -10,6 +10,8 @@ from PIL import Image
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.util import instantiate_from_config
 
+from scripts.utility.device_selection import send_to_preferred_device
+
 rescale = lambda x: (x + 1.) / 2.
 
 def custom_to_pil(x):
@@ -220,7 +222,7 @@ def get_parser():
 def load_model_from_config(config, sd):
     model = instantiate_from_config(config)
     model.load_state_dict(sd,strict=False)
-    model.cuda()
+    model = send_to_preferred_device(model)
     model.eval()
     return model
 

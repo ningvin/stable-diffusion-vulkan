@@ -15,6 +15,8 @@ from ldm.util import ismap
 import time
 from omegaconf import OmegaConf
 
+from scripts.utility.device_selection import send_to_preferred_device, get_preferred_device
+
 
 def download_models(mode):
 
@@ -44,7 +46,7 @@ def load_model_from_config(config, ckpt):
     sd = pl_sd["state_dict"]
     model = instantiate_from_config(config.model)
     m, u = model.load_state_dict(sd, strict=False)
-    model.cuda()
+    model = send_to_preferred_device(model)
     model.eval()
     return {"model": model}, global_step
 
@@ -117,7 +119,7 @@ def get_cond(mode, selected_path):
         c = rearrange(c, '1 c h w -> 1 h w c')
         c = 2. * c - 1.
 
-        c = c.to(torch.device("cuda"))
+        c = c.to(torch.device(get_preferred_device()))
         example["LR_image"] = c
         example["image"] = c_up
 

@@ -18,6 +18,8 @@ from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.encoders.modules import FrozenClipImageEmbedder, FrozenCLIPTextEmbedder
 
+from scripts.utility.device_selection import send_to_preferred_device, get_preferred_device
+
 DATABASES = [
     "openimages",
     "artbench-art_nouveau",
@@ -53,7 +55,7 @@ def load_model_from_config(config, ckpt, verbose=False):
         print("unexpected keys:")
         print(u)
 
-    model.cuda()
+    model = send_to_preferred_device(model)
     model.eval()
     return model
 
@@ -122,8 +124,7 @@ class Searcher(object):
 
     def load_retriever(self, version='ViT-L/14', ):
         model = FrozenClipImageEmbedder(model=version)
-        if torch.cuda.is_available():
-            model.cuda()
+        model = send_to_preferred_device(model)
         model.eval()
         return model
 
@@ -309,7 +310,7 @@ if __name__ == "__main__":
     config = OmegaConf.load(f"{opt.config}")
     model = load_model_from_config(config, f"{opt.ckpt}")
 
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device(get_preferred_device())
     model = model.to(device)
 
     clip_text_encoder = FrozenCLIPTextEmbedder(opt.clip_type).to(device)
@@ -358,7 +359,9 @@ if __name__ == "__main__":
                     uc = None
                     if searcher is not None:
                         nn_dict = searcher(c, opt.knn)
-                        c = torch.cat([c, torch.from_numpy(nn_dict['nn_embeddings']).cuda()], dim=1)
+                        result = torch.from_numpy(nn_dict['nn_embeddings'])
+                        result = send_to_preferred_device(result)
+                        c = torch.cat([c, result], dim=1)
                     if opt.scale != 1.0:
                         uc = torch.zeros_like(c)
                     if isinstance(prompts, tuple):
