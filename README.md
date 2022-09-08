@@ -39,13 +39,13 @@ We will be dealing with lots of python dependencies. The official Stable Diffusi
 This is the folder structure I came up with:
 
 ```
-root // e.g. ~/Workspace/stable-diffusion-vulkan
+root // e.g. ~/Workspace/stable-diffusion
   |
   +-- .venv // for collecting all dependencies required by stable diffusion
   |
   +-- pytorch // the official PyTorch repo, setup in a later step
   |
-  +-- stable-diffusion // the official stable diffusion repo, setup in a later step
+  +-- stable-diffusion-vulkan // this repository, setup in a later step
 ```
 
 Create a virtual environment like this:
@@ -62,9 +62,7 @@ me:root$ source .venv/bin/activate
 
 I will try to remind you whenever this virtual environment needs to be active throughout this odyssey.
 
-# 3 - Setting up the Stable Diffusion Repository
-
-This section for the most part follows the [official documentation](https://github.com/CompVis/stable-diffusion/blob/main/README.md).
+# 3 - Setting up the Stable Diffusion
 
 ## 3.1 - Setting up the Repository
 
@@ -78,7 +76,7 @@ Follow the steps provided by the [original README](ORIGINAL_README.md#reference-
 
 ## 3.2 - Installing the Dependencies
 
-Make sure the virtual environment created in 2.2 is active. The dependencies required for stable diffusion are listed [here](https://github.com/CompVis/stable-diffusion/blob/main/environment.yaml).
+Make sure the virtual environment created in [2.2](#22---preparing-a-workspace) is active. The dependencies required for stable diffusion are listed [here](environment.yaml).
 
 I ended up skipping the following dependencies:
 - `pytorch` (we will be building that ourselves in a later step)
@@ -120,7 +118,7 @@ me:root$ git clone --recursive https://github.com/pytorch/pytorch
 
 ## 4.2 - Installing the Dependencies
 
-With the virtual environment created in 2.2 active:
+With the virtual environment created in [2.2](#22---preparing-a-workspace) active:
 
 ```bash
 (.venv) me:root$ pip install astunparse numpy ninja pyyaml setuptools cmake cffi typing_extensions future six requests dataclasses mkl mkl-include
@@ -130,7 +128,7 @@ These dependencies are taken from [here](https://github.com/pytorch/pytorch#inst
 
 ## 4.3 - Building PyTorch with the Vulkan Backend enabled
 
-Make sure the virtual environment created in 2.2 is active.
+Make sure the virtual environment created in [2.2](#22---preparing-a-workspace) is active.
 
 The [Vulkan Workflow documentation]((https://pytorch.org/tutorials/prototype/vulkan_workflow.html)) suggests the following:
 
@@ -204,28 +202,28 @@ DRI_PRIME="1002:67df"  # also possible: "0x1002:0x67df"
 
 ## 5.2 - Running Stable Diffusion
 
-Make sure the virtual environment created in 2.2 is active. From within the folder you cloned Stable Diffusion into, execute the following:
+Make sure the virtual environment created in [2.2](#22---preparing-a-workspace) is active. From within the folder you cloned Stable Diffusion into, execute the following:
 
 ```bash
-(.venv) me:root/stable-diffusion$ DRI_PRIME="1002:67df" python ./scripts/txt2img.py --prompt "my friend the tree is hugging me" --n_samples 1 --n_iter 1 --plms
+(.venv) me:root/stable-diffusion-vulkan$ DRI_PRIME="1002:67df" python ./scripts/txt2img.py --prompt "my friend the tree is hugging me" --n_samples 1 --n_iter 1 --plms
 ```
 
-**Note:** obviously substitute the value for `DRI_PRIME` with whatever you found out in 5.1, as well as the prompt with whatever your imagination can come up with :^)
+**Note:** obviously substitute the value for `DRI_PRIME` with whatever you found out in [5.1](#51---finding-the-correct-vulkan-device), as well as the prompt with whatever your imagination can come up with :^)
 
 **Warning:** this uses quite the amount of RAM while loading the weights and processing the model. You might want to have an eye on your RAM usage and kill other processes that might use lots of RAM, like browsers, VS Code, etc. Unless you have more than 16 GiB of RAM, then you are probably fine...
 
 If this actually works for you and produces a picture: congrats! If not: welcome to the club!
 
 I ran into a lot of problems along the way:
-- segmentation fault (remember the bad build flag in 4.3? yeah that one...)
-- killed (had to use `journalctl` to figure out it was due to using too much RAM; took a while to figure out that this was due to using llvmpipe, hence 5.1)
+- segmentation fault (remember the bad build flag in [4.3](#43---building-pytorch-with-the-vulkan-backend-enabled)? yeah that one...)
+- killed (had to use `journalctl` to figure out it was due to using too much RAM; took a while to figure out that this was due to using llvmpipe, hence [5.1](#51---finding-the-correct-vulkan-device))
 - error return code / exception
 
 I have tried a bunch of things, but I am stuck at this last category of errors. The next section is a summary of those things.
 
 # 6 - Troubleshooting
 
-This assumes you have made it to 5.2 without any hickups, but are unable to run Stable Diffusion.
+This assumes you have made it to [5.2](#52---running-stable-diffusion) without any hickups, but are unable to run Stable Diffusion.
 
 ## 6.1 - Dealing with Core Dumps
 
@@ -261,21 +259,21 @@ I for my part installed `mesa-vulkan-drivers-dbgsym`.
 
 ## 6.3 - Debugging PyTorch using GDB
 
-Kind of a bad idea. First, you need to (re)compile PyTorch with debug symbols. Simply add `DEBUG=1` to the build command in 4.3 (you might want to clean the `build` folder before that though).
+Kind of a bad idea. First, you need to (re)compile PyTorch with debug symbols. Simply add `DEBUG=1` to the build command in [4.3](#43---building-pytorch-with-the-vulkan-backend-enabled) (you might want to clean the `build` folder before that though).
 
 I was then unable to launch the script from within GDB:
 ```bash
-(.venv) me:root/stable-diffusion$ DRI_PRIME="1002:67df" gdb python
+(.venv) me:root/stable-diffusion-vulkan$ DRI_PRIME="1002:67df" gdb python
 ...
 (gdb) run ./scripts/txt2img.py --prompt "my friend the tree is hugging me" --n_samples 1 --n_iter 1 --plms
 ```
 
 After executing the `run` command it would create some threads and then pretty much nothing happened after that.
 
-I had more success attaching to an already running process. Simply run Stable Diffusion as described in 5.2, wait until the model is loaded (you may add a simple `input()` prompt into `txt2img.py` right before the data is sent to the Vulkan device) and then execute the following in a different terminal:
+I had more success attaching to an already running process. Simply run Stable Diffusion as described in [5.2](#52---running-stable-diffusion), wait until the model is loaded (you may add a simple `input()` prompt into `txt2img.py` right before the data is sent to the Vulkan device) and then execute the following in a different terminal:
 
 ```bash
-me:root/stable-diffusion$ sudo gdb attach {pid}
+me:root/stable-diffusion-vulkan$ sudo gdb attach {pid}
 ```
 
 where `{pid}` is the process id of the `python` process.
@@ -306,9 +304,9 @@ All in all, this has been the most helpful debugging tool.
 
 ## 6.5 - Debugging Mesa using `printf`
 
-After analyzing the diagnostics output obtained in 6.4, I tried to get a better look into what the Mesa driver was doing, specifically `libvulkan_radeon.so`.
+After analyzing the diagnostics output obtained in [6.4](#64---debugging-pytorch-using-printf), I tried to get a better look into what the Mesa driver was doing, specifically `libvulkan_radeon.so`.
 
-Debugging using GDB seemed out of the question, so I tried to follow a similar approach as in 6.4. For this I loosely followed the instructions [here](https://docs.mesa3d.org/install.html#running-against-a-local-build).
+Debugging using GDB seemed out of the question, so I tried to follow a similar approach as in [6.4](#64---debugging-pytorch-using-printf). For this I loosely followed the instructions [here](https://docs.mesa3d.org/install.html#running-against-a-local-build).
 
 While I was able to build the Vulkan driver and add diagnostic traces (`printf`) to it, I did not have much success using it to track down problems. The drivers built by me (both debug and optimized) always seemed to use *way* more RAM than the ones that shipped with Pop!_OS / Ubuntu, so much in fact that the system ran out of RAM before it even got to the critical part...
 
@@ -345,7 +343,7 @@ This list may be incomplete. If something is missing on your system, Meson will 
 
 ### 6.5.3 - Building the Vulkan Radeon Driver
 
-Make sure the virtual environment created in 6.5.2 is active. Inside the Mesa repository, create a folder called `build` and change into it.
+Make sure the virtual environment created in [6.5.2](#652---installing-the-dependencies) is active. Inside the Mesa repository, create a folder called `build` and change into it.
 
 I initially used the following command to generate the build files:
 
@@ -378,12 +376,12 @@ The above should have generated the following two files, among other things:
 We can specify the latter when running Stable Diffusion by using the `VK_ICD_FILENAMES` environment variable. Such a call to Stable Diffusion might look like this:
 
 ```bash
-(.venv) me:root/stable-diffusion$ DRI_PRIME="1002:67df" VK_ICD_FILENAMES="root/mesa/install/share/vulkan/icd.d/radeon_icd.x86_64.json" python ./scripts/txt2img.py --prompt "my friend the tree is hugging me" --n_samples 1 --n_iter 1 --plms
+(.venv) me:root/stable-diffusion-vulkan$ DRI_PRIME="1002:67df" VK_ICD_FILENAMES="root/mesa/install/share/vulkan/icd.d/radeon_icd.x86_64.json" python ./scripts/txt2img.py --prompt "my friend the tree is hugging me" --n_samples 1 --n_iter 1 --plms
 ```
 
 **Note:** ensure that the correct virtual environment is active.
 
-And voilà: Stable Diffusion should use the Vulkan driver you have built in 6.5.3. Just add some `printf` calls, rebuild (make sure you build the `install` target) and you have a driver with fancy diagnostics output.
+And voilà: Stable Diffusion should use the Vulkan driver you have built in [6.5.3](#653---building-the-vulkan-radeon-driver). Just add some `printf` calls, rebuild (make sure you build the `install` target) and you have a driver with fancy diagnostics output.
 
 ## 7 - My current Status
 
