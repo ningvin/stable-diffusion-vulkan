@@ -85,15 +85,15 @@ I ended up skipping the following dependencies:
 This left me with the requirements in the [requirements.txt](requirements.txt) file. They can be installed like this:
 
 ```bash
-(.venv) me:root$ pip install -r requirements.txt
+(.venv) me:root/stable-diffusion-vulkan$ pip install -r requirements.txt
 ```
 
 Additionally, we need to install the following with the `-e` switch:
 
 ```bash
-(.venv) me:root$ pip install -e git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
-(.venv) me:root$ pip install -e git+https://github.com/openai/CLIP.git@main#egg=clip
-(.venv) me:root$ pip install -e .
+(.venv) me:root/stable-diffusion-vulkan$ pip install -e git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
+(.venv) me:root/stable-diffusion-vulkan$ pip install -e git+https://github.com/openai/CLIP.git@main#egg=clip
+(.venv) me:root/stable-diffusion-vulkan$ pip install -e .
 ```
 
 **Note:** one of the steps above probably also installed a version of PyTorch as an indirect dependency. As we will build our own later, we need to uninstall this one:
